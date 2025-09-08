@@ -142,6 +142,17 @@ const getCommandsMap = ({ context, outputChannel, provider }: RegisterCommandOpt
 		// Also explicitly post the visibility message to trigger scroll reliably
 		visibleProvider.postMessageToWebview({ type: "action", action: "didBecomeVisible" })
 	},
+	visionSyncButtonClicked: () => {
+		const visibleProvider = getVisibleProviderOrLog(outputChannel)
+
+		if (!visibleProvider) {
+			return
+		}
+
+		TelemetryService.instance.captureTitleButtonClicked("visionSync")
+
+		visibleProvider.postMessageToWebview({ type: "action", action: "visionSyncButtonClicked" })
+	},
 	historyButtonClicked: () => {
 		const visibleProvider = getVisibleProviderOrLog(outputChannel)
 

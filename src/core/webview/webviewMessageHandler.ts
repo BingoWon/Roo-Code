@@ -58,6 +58,8 @@ const ALLOWED_VSCODE_SETTINGS = new Set(["terminal.integrated.inheritEnv"])
 
 import { MarketplaceManager, MarketplaceItemType } from "../../services/marketplace"
 import { setPendingTodoList } from "../tools/updateTodoListTool"
+import { getVisionSyncService } from "../../extension"
+import type { VisionSyncSettings } from "../../shared/VisionSyncTypes"
 
 export const webviewMessageHandler = async (
 	provider: ClineProvider,
@@ -2889,6 +2891,65 @@ export const webviewMessageHandler = async (
 				provider.getCurrentTask()?.messageQueueService.updateMessage(id, text, images)
 			}
 
+			break
+		}
+
+		/**
+		 * VisionSync Messages
+		 */
+		case "getVisionSyncStatus": {
+			// Get VisionSync service status from extension
+			const visionSyncService = getVisionSyncService()
+			if (visionSyncService) {
+				const status = visionSyncService.getStatus()
+				await provider.postMessageToWebview({
+					type: "visionSyncStatus",
+					status: status,
+				})
+			} else {
+				await provider.postMessageToWebview({
+					type: "visionSyncStatus",
+					status: null,
+				})
+			}
+			break
+		}
+
+		case "updateVisionSyncSettings": {
+			// Update VisionSync settings
+			const visionSyncService = getVisionSyncService()
+			if (visionSyncService && message.payload) {
+				const settings = message.payload as VisionSyncSettings
+				visionSyncService.updateConfig(settings)
+
+				// Send updated status back
+				const status = visionSyncService.getStatus()
+				await provider.postMessageToWebview({
+					type: "visionSyncStatus",
+					status: status,
+				})
+			}
+			break
+		}
+
+		case "restartVisionSync": {
+			// Restart VisionSync service
+			const visionSyncService = getVisionSyncService()
+			if (visionSyncService) {
+				try {
+					await visionSyncService.stop()
+					await visionSyncService.start(provider)
+
+					// Send updated status back
+					const status = visionSyncService.getStatus()
+					await provider.postMessageToWebview({
+						type: "visionSyncStatus",
+						status: status,
+					})
+				} catch (error) {
+					provider.log(`Failed to restart VisionSync: ${error}`)
+				}
+			}
 			break
 		}
 	}

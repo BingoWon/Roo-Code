@@ -37,6 +37,7 @@ export const commandIds = [
 	"popoutButtonClicked",
 	"cloudButtonClicked",
 	"settingsButtonClicked",
+	"visionSyncButtonClicked",
 
 	"openInNewTab",
 

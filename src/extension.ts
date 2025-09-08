@@ -31,6 +31,7 @@ import { MdmService } from "./services/mdm/MdmService"
 import { migrateSettings } from "./utils/migrateSettings"
 import { autoImportSettings } from "./utils/autoImportSettings"
 import { API } from "./extension/api"
+import { VisionSyncService } from "./services/vision-sync"
 
 import {
 	handleUri,
@@ -52,6 +53,7 @@ import { initializeI18n } from "./i18n"
 let outputChannel: vscode.OutputChannel
 let extensionContext: vscode.ExtensionContext
 let cloudService: CloudService | undefined
+let visionSyncService: VisionSyncService | undefined
 
 let authStateChangedHandler: ((data: { state: AuthState; previousState: AuthState }) => Promise<void>) | undefined
 let settingsUpdatedHandler: (() => void) | undefined
@@ -254,6 +256,40 @@ export async function activate(context: vscode.ExtensionContext) {
 
 	registerCommands({ context, outputChannel, provider })
 
+	// Initialize VisionSync service for visionOS integration
+	try {
+		const visionSyncEnabled = vscode.workspace
+			.getConfiguration(Package.name)
+			.get<boolean>("visionSync.enabled", true)
+
+		if (visionSyncEnabled) {
+			visionSyncService = new VisionSyncService({
+				serviceName: `RooCode-${require("os").hostname()}`,
+				enabled: true,
+			})
+
+			// Start the service with the provider
+			await visionSyncService.start(provider)
+
+			// Add to subscriptions for proper cleanup
+			context.subscriptions.push({
+				dispose: async () => {
+					if (visionSyncService) {
+						await visionSyncService.stop()
+					}
+				},
+			})
+
+			outputChannel.appendLine(`[VisionSync] Service started successfully`)
+		} else {
+			outputChannel.appendLine(`[VisionSync] Service disabled in settings`)
+		}
+	} catch (error) {
+		outputChannel.appendLine(
+			`[VisionSync] Failed to start service: ${error instanceof Error ? error.message : String(error)}`,
+		)
+	}
+
 	/**
 	 * We use the text document content provider API to show the left side for diff
 	 * view by creating a virtual document for the original content. This makes it
@@ -358,6 +394,18 @@ export async function activate(context: vscode.ExtensionContext) {
 export async function deactivate() {
 	outputChannel.appendLine(`${Package.name} extension deactivated`)
 
+	// Clean up VisionSync service
+	if (visionSyncService) {
+		try {
+			await visionSyncService.stop()
+			outputChannel.appendLine("[VisionSync] Service stopped")
+		} catch (error) {
+			outputChannel.appendLine(
+				`[VisionSync] Error stopping service: ${error instanceof Error ? error.message : String(error)}`,
+			)
+		}
+	}
+
 	if (cloudService && CloudService.hasInstance()) {
 		try {
 			if (authStateChangedHandler) {
@@ -389,4 +437,17 @@ export async function deactivate() {
 	await McpServerManager.cleanup(extensionContext)
 	TelemetryService.instance.shutdown()
 	TerminalRegistry.cleanup()
+}
+
+// Export functions for accessing extension services
+export function getExtensionContext(): vscode.ExtensionContext {
+	return extensionContext
+}
+
+export function getOutputChannel(): vscode.OutputChannel {
+	return outputChannel
+}
+
+export function getVisionSyncService(): VisionSyncService | undefined {
+	return visionSyncService
 }

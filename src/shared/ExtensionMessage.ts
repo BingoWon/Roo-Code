@@ -123,6 +123,7 @@ export interface ExtensionMessage {
 		| "showEditMessageDialog"
 		| "commands"
 		| "insertTextIntoTextarea"
+		| "visionSyncStatus"
 	text?: string
 	payload?: any // Add a generic payload for now, can refine later
 	action?:
@@ -133,6 +134,7 @@ export interface ExtensionMessage {
 		| "promptsButtonClicked"
 		| "marketplaceButtonClicked"
 		| "cloudButtonClicked"
+		| "visionSyncButtonClicked"
 		| "didBecomeVisible"
 		| "focusInput"
 		| "switchTab"
@@ -199,6 +201,7 @@ export interface ExtensionMessage {
 	context?: string
 	commands?: Command[]
 	queuedMessages?: QueuedMessage[]
+	status?: any // For VisionSync status and other service statuses
 }
 
 export type ExtensionState = Pick<

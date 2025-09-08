@@ -13,6 +13,7 @@
 	"command.openInEditor.title": "Open in Editor",
 	"command.cloud.title": "Cloud",
 	"command.settings.title": "Settings",
+	"command.visionSync.title": "VisionSync",
 	"command.documentation.title": "Documentation",
 	"command.openInNewTab.title": "Open In New Tab",
 	"command.explainCode.title": "Explain Code",
@@ -41,5 +42,9 @@
 	"settings.useAgentRules.description": "Enable loading of AGENTS.md files for agent-specific rules (see https://agent-rules.org/)",
 	"settings.apiRequestTimeout.description": "Maximum time in seconds to wait for API responses (0 = no timeout, 1-3600s, default: 600s). Higher values are recommended for local providers like LM Studio and Ollama that may need more processing time.",
 	"settings.newTaskRequireTodos.description": "Require todos parameter when creating new tasks with the new_task tool",
-	"settings.codeIndex.embeddingBatchSize.description": "The batch size for embedding operations during code indexing. Adjust this based on your API provider's limits. Default is 60."
+	"settings.codeIndex.embeddingBatchSize.description": "The batch size for embedding operations during code indexing. Adjust this based on your API provider's limits. Default is 60.",
+	"settings.visionSync.enabled.description": "Enable VisionSync service for visionOS integration. Allows visionOS devices to connect and interact with Roo Code AI.",
+	"settings.visionSync.port.description": "WebSocket port for VisionSync service. visionOS devices will connect to this port for real-time communication.",
+	"settings.visionSync.discoveryPort.description": "HTTP port for service discovery. visionOS devices use this port to discover and connect to Roo Code.",
+	"settings.visionSync.maxConnections.description": "Maximum number of concurrent visionOS connections allowed. Adjust based on your network capacity and usage needs."
 }

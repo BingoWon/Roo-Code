@@ -221,6 +221,9 @@ export interface WebviewMessage {
 		| "queueMessage"
 		| "removeQueuedMessage"
 		| "editQueuedMessage"
+		| "getVisionSyncStatus"
+		| "updateVisionSyncSettings"
+		| "restartVisionSync"
 	text?: string
 	editedMessageContent?: string
 	tab?: "settings" | "history" | "mcp" | "modes" | "chat" | "marketplace" | "cloud"
@@ -330,6 +333,13 @@ export type InstallMarketplaceItemWithParametersPayload = z.infer<
 	typeof installMarketplaceItemWithParametersPayloadSchema
 >
 
+export interface VisionSyncSettingsPayload {
+	enabled?: boolean
+	port?: number
+	discoveryPort?: number
+	maxConnections?: number
+}
+
 export type WebViewMessagePayload =
 	| CheckpointDiffPayload
 	| CheckpointRestorePayload
@@ -338,3 +348,4 @@ export type WebViewMessagePayload =
 	| InstallMarketplaceItemWithParametersPayload
 	| UpdateTodoListPayload
 	| EditQueuedMessagePayload
+	| VisionSyncSettingsPayload

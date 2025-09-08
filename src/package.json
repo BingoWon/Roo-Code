@@ -111,6 +111,11 @@
 				"icon": "$(settings-gear)"
 			},
 			{
+				"command": "roo-cline.visionSyncButtonClicked",
+				"title": "%command.visionSync.title%",
+				"icon": "$(device-mobile)"
+			},
+			{
 				"command": "roo-cline.openInNewTab",
 				"title": "%command.openInNewTab.title%",
 				"category": "%configuration.title%"
@@ -239,6 +244,11 @@
 					"when": "view == roo-cline.SidebarProvider"
 				},
 				{
+					"command": "roo-cline.visionSyncButtonClicked",
+					"group": "navigation@5",
+					"when": "view == roo-cline.SidebarProvider"
+				},
+				{
 					"command": "roo-cline.historyButtonClicked",
 					"group": "overflow@1",
 					"when": "view == roo-cline.SidebarProvider"
@@ -278,6 +288,11 @@
 				{
 					"command": "roo-cline.cloudButtonClicked",
 					"group": "navigation@4",
+					"when": "activeWebviewPanelId == roo-cline.TabPanelProvider"
+				},
+				{
+					"command": "roo-cline.visionSyncButtonClicked",
+					"group": "navigation@5",
 					"when": "activeWebviewPanelId == roo-cline.TabPanelProvider"
 				},
 				{
@@ -407,6 +422,32 @@
 					"minimum": 1,
 					"maximum": 200,
 					"description": "%settings.codeIndex.embeddingBatchSize.description%"
+				},
+				"roo-cline.visionSync.enabled": {
+					"type": "boolean",
+					"default": true,
+					"description": "%settings.visionSync.enabled.description%"
+				},
+				"roo-cline.visionSync.port": {
+					"type": "number",
+					"default": 8765,
+					"minimum": 1024,
+					"maximum": 65535,
+					"description": "%settings.visionSync.port.description%"
+				},
+				"roo-cline.visionSync.discoveryPort": {
+					"type": "number",
+					"default": 8766,
+					"minimum": 1024,
+					"maximum": 65535,
+					"description": "%settings.visionSync.discoveryPort.description%"
+				},
+				"roo-cline.visionSync.maxConnections": {
+					"type": "number",
+					"default": 10,
+					"minimum": 1,
+					"maximum": 100,
+					"description": "%settings.visionSync.maxConnections.description%"
 				}
 			}
 		}
@@ -498,6 +539,7 @@
 		"vscode-material-icons": "^0.1.1",
 		"web-tree-sitter": "^0.25.6",
 		"workerpool": "^9.2.0",
+		"ws": "^8.18.0",
 		"yaml": "^2.8.0",
 		"zod": "^3.25.61"
 	},
@@ -522,6 +564,7 @@
 		"@types/tmp": "^0.2.6",
 		"@types/turndown": "^5.0.5",
 		"@types/vscode": "^1.84.0",
+		"@types/ws": "^8.5.12",
 		"@vscode/test-electron": "^2.5.2",
 		"@vscode/vsce": "3.3.2",
 		"esbuild": "^0.25.0",

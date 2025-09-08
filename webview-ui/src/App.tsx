@@ -21,13 +21,15 @@ import ModesView from "./components/modes/ModesView"
 import { HumanRelayDialog } from "./components/human-relay/HumanRelayDialog"
 import { CheckpointRestoreDialog } from "./components/chat/CheckpointRestoreDialog"
 import { DeleteMessageDialog, EditMessageDialog } from "./components/chat/MessageModificationConfirmationDialog"
+
 import ErrorBoundary from "./components/ErrorBoundary"
 import { CloudView } from "./components/cloud/CloudView"
+import { VisionSyncSettings } from "./components/settings/VisionSyncSettings"
 import { useAddNonInteractiveClickListener } from "./components/ui/hooks/useNonInteractiveClick"
 import { TooltipProvider } from "./components/ui/tooltip"
 import { STANDARD_TOOLTIP_DELAY } from "./components/ui/standard-tooltip"
 
-type Tab = "settings" | "history" | "mcp" | "modes" | "chat" | "marketplace" | "cloud"
+type Tab = "settings" | "history" | "mcp" | "modes" | "chat" | "marketplace" | "cloud" | "visionSync"
 
 interface HumanRelayDialogState {
 	isOpen: boolean
@@ -63,6 +65,7 @@ const tabsByMessageAction: Partial<Record<NonNullable<ExtensionMessage["action"]
 	historyButtonClicked: "history",
 	marketplaceButtonClicked: "marketplace",
 	cloudButtonClicked: "cloud",
+	visionSyncButtonClicked: "visionSync",
 }
 
 const App = () => {
@@ -268,6 +271,7 @@ const App = () => {
 					onDone={() => switchTab("chat")}
 				/>
 			)}
+			{tab === "visionSync" && <VisionSyncSettings onDone={() => switchTab("chat")} />}
 			<ChatView
 				ref={chatViewRef}
 				isHidden={tab !== "chat"}
