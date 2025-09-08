@@ -6,7 +6,6 @@
 import { randomUUID } from "crypto"
 import type {
 	VisionMessage,
-	VisionMessageType,
 	ClientHandshakeMessage,
 	ConnectionAcceptedMessage,
 	ConnectionRejectedMessage,
@@ -21,7 +20,7 @@ import { VisionMessageType } from "./types"
 /**
  * Create a base message with common fields
  */
-function createBaseMessage(type: VisionMessageType): { type: VisionMessageType; timestamp: number; id: string } {
+function createBaseMessage<T extends VisionMessageType>(type: T): { type: T; timestamp: number; id: string } {
 	return {
 		type,
 		timestamp: Date.now(),

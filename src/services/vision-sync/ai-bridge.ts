@@ -5,7 +5,7 @@
 
 import { EventEmitter } from "events"
 import type { ClineProvider } from "../../core/webview/ClineProvider"
-import type { ClineMessage, Task } from "@roo-code/types"
+import type { ClineMessage } from "@roo-code/types"
 import { RooCodeEventName } from "@roo-code/types"
 import type { VisionMessage, AIConversationMessage, TriggerSendMessage, VisionConnection } from "./types"
 import { MessageFactory } from "./message-utils"
@@ -21,7 +21,7 @@ interface VisionClient {
 export class VisionAIBridge extends EventEmitter {
 	private provider: ClineProvider | null = null
 	private clients = new Map<string, VisionClient>()
-	private taskListeners = new Map<string, () => void>()
+	private taskListeners = new Map<string, (messageEvent: { action: string; message: ClineMessage }) => void>()
 
 	constructor() {
 		super()
@@ -129,35 +129,28 @@ export class VisionAIBridge extends EventEmitter {
 			console.log(`[VisionAIBridge] Processing trigger send: ${action} for session ${sessionId}`)
 
 			if (action === "send") {
-				// Trigger the send action in Roo Code
-				const result = await this.triggerRooCodeSend(sessionId)
+				// Trigger send in Roo Code
+				await this.provider?.postMessageToWebview({
+					type: "invoke",
+					invoke: "primaryButtonClick",
+				})
 
-				return MessageFactory.aiConversation(
-					sessionId,
-					"assistant",
-					result.success ? "Send action triggered successfully" : `Send action failed: ${result.error}`,
-					{
-						type: "trigger_send_result",
-						success: result.success,
-						error: result.error,
-						originalMessageId: message.id,
-					},
-				)
+				return MessageFactory.aiConversation(sessionId, "assistant", "Send action triggered", {
+					type: "trigger_result",
+					success: true,
+					originalMessageId: message.id,
+				})
 			} else if (action === "cancel") {
-				// Cancel any ongoing operations
-				const result = await this.cancelRooCodeOperation(sessionId)
+				// Cancel current operation
+				await this.provider?.postMessageToWebview({
+					type: "cancelTask",
+				})
 
-				return MessageFactory.aiConversation(
-					sessionId,
-					"assistant",
-					result.success ? "Operation cancelled successfully" : `Cancel failed: ${result.error}`,
-					{
-						type: "cancel_result",
-						success: result.success,
-						error: result.error,
-						originalMessageId: message.id,
-					},
-				)
+				return MessageFactory.aiConversation(sessionId, "assistant", "Operation cancelled", {
+					type: "cancel_result",
+					success: true,
+					originalMessageId: message.id,
+				})
 			} else {
 				throw new Error(`Unknown trigger action: ${action}`)
 			}
@@ -184,7 +177,7 @@ export class VisionAIBridge extends EventEmitter {
 		if (!this.provider) return
 
 		// Listen for new tasks
-		this.provider.on(RooCodeEventName.TaskCreated, (task: Task) => {
+		this.provider.on(RooCodeEventName.TaskCreated, (task: any) => {
 			this.setupTaskMessageListener(task)
 		})
 
@@ -198,7 +191,7 @@ export class VisionAIBridge extends EventEmitter {
 	/**
 	 * Setup message listener for a specific task
 	 */
-	private setupTaskMessageListener(task: Task): void {
+	private setupTaskMessageListener(task: any): void {
 		const taskId = task.taskId
 
 		// Remove existing listener if any
@@ -219,61 +212,6 @@ export class VisionAIBridge extends EventEmitter {
 		this.taskListeners.set(taskId, messageListener)
 
 		console.log(`[VisionAIBridge] Message listener setup for task: ${taskId}`)
-	}
-
-	/**
-	 * Process trigger send message from visionOS
-	 */
-	async processTriggerSend(
-		connectionId: string,
-		message: TriggerSendMessage,
-		connection: VisionConnection,
-	): Promise<VisionMessage> {
-		try {
-			const { sessionId, action } = message.payload
-			this.updateClientActivity(connectionId)
-
-			console.log(`[VisionAIBridge] Processing trigger: ${action}`)
-
-			if (action === "send") {
-				// Trigger send in Roo Code
-				await this.provider?.postMessageToWebview({
-					type: "invoke",
-					invoke: "primaryButtonClick",
-				})
-
-				return MessageFactory.aiConversation(sessionId, "assistant", "Send action triggered", {
-					type: "trigger_result",
-					success: true,
-					originalMessageId: message.id,
-				})
-			} else if (action === "cancel") {
-				// Cancel current operation
-				await this.provider?.postMessageToWebview({
-					type: "cancelTask",
-				})
-
-				return MessageFactory.aiConversation(sessionId, "assistant", "Operation cancelled", {
-					type: "cancel_result",
-					success: true,
-					originalMessageId: message.id,
-				})
-			} else {
-				throw new Error(`Unknown action: ${action}`)
-			}
-		} catch (error) {
-			console.error("[VisionAIBridge] Error processing trigger:", error)
-
-			return MessageFactory.aiConversation(
-				message.payload.sessionId,
-				"assistant",
-				`Error: ${error instanceof Error ? error.message : "Unknown error"}`,
-				{
-					type: "error",
-					originalMessageId: message.id,
-				},
-			)
-		}
 	}
 
 	/**
@@ -334,17 +272,16 @@ export class VisionAIBridge extends EventEmitter {
 				// Continue existing conversation
 				await this.provider.postMessageToWebview({
 					type: "askResponse",
-					askResponse: "messageResponse",
 					text: content,
 					images: [],
-				})
+				} as any)
 			} else {
 				// Create new task
 				await this.provider.postMessageToWebview({
 					type: "newTask",
 					text: content,
 					images: [],
-				})
+				} as any)
 			}
 		} catch (error) {
 			console.error("[VisionAIBridge] Error sending message to Roo Code:", error)

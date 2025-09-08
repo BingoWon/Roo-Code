@@ -18,9 +18,7 @@ interface ClientConnection {
 	pingInterval?: NodeJS.Timeout
 }
 
-export class VisionWebSocketServer extends EventEmitter<{
-	[K in VisionServiceEvent]: (data: VisionServiceEventData[K]) => void
-}> {
+export class VisionWebSocketServer extends EventEmitter {
 	private server: WebSocketServer | null = null
 	private clients = new Map<string, ClientConnection>()
 	private readonly pingInterval = 30000 // 30 seconds
@@ -141,12 +139,13 @@ export class VisionWebSocketServer extends EventEmitter<{
 	/**
 	 * Handle incoming message from client
 	 */
-	private handleMessage(clientId: string, data: Buffer): void {
+	private handleMessage(clientId: string, data: any): void {
 		const client = this.clients.get(clientId)
 		if (!client) return
 
 		try {
-			const message = deserializeMessage(data.toString())
+			const dataString = Buffer.isBuffer(data) ? data.toString() : String(data)
+			const message = deserializeMessage(dataString)
 
 			if (!validateMessage(message)) {
 				throw new Error("Invalid message format")
