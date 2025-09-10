@@ -5,7 +5,8 @@
 
 import { EventEmitter } from "events"
 import type { ClineProvider } from "../../core/webview/ClineProvider"
-import type { ClineMessage, Task as TaskType } from "@roo-code/types"
+import type { ClineMessage } from "@roo-code/types"
+import { Task } from "../../core/task/Task"
 import { RooCodeEventName } from "@roo-code/types"
 import type {
 	VisionMessage,
@@ -202,16 +203,10 @@ export class VisionAIBridge extends EventEmitter {
 			const currentTask = this.provider?.getCurrentTask()
 			if (currentTask) {
 				console.log(`[VisionAIBridge] Current task found: ${currentTask.taskId}`)
-				console.log(`[VisionAIBridge] Task askResponse state BEFORE: ${currentTask.askResponse}`)
 				console.log(`[VisionAIBridge] Task lastMessageTs: ${currentTask.lastMessageTs}`)
 
-				// Check if task is actually waiting for a response
-				const isWaitingForResponse = currentTask.askResponse === undefined
-				console.log(`[VisionAIBridge] Task is waiting for response: ${isWaitingForResponse}`)
+				currentTask.handleWebviewAskResponse(askResponse as any, text, images ? [...images] : undefined)
 
-				currentTask.handleWebviewAskResponse(askResponse as any, text, images)
-
-				console.log(`[VisionAIBridge] Task askResponse state AFTER: ${currentTask.askResponse}`)
 				console.log(`[VisionAIBridge] Ask response handled successfully: ${askResponse}`)
 			} else {
 				console.warn(`[VisionAIBridge] No current task found to handle ask response: ${askResponse}`)
@@ -311,13 +306,13 @@ export class VisionAIBridge extends EventEmitter {
 			const sessionId = this.getActiveSessionId() || "current-session"
 
 			// Enhanced role mapping
-			let role: "user" | "assistant" | "system" = "assistant"
+			let role: "user" | "assistant" = "assistant"
 			if (clineMessage.type === "ask") {
 				role = "user"
 			} else if (clineMessage.say === "text" || clineMessage.say === "completion_result") {
 				role = "assistant"
-			} else if (clineMessage.say === "error" || clineMessage.say === "tool") {
-				role = "system"
+			} else if (clineMessage.say === "error") {
+				role = "assistant" // Map system messages to assistant for compatibility
 			}
 
 			const content = clineMessage.text || ""
@@ -344,7 +339,7 @@ export class VisionAIBridge extends EventEmitter {
 				...baseMessage,
 				isStreaming: clineMessage.partial === true,
 				isFinal: clineMessage.partial !== true,
-				streamId: clineMessage.id || baseMessage.id,
+				streamId: baseMessage.id,
 				chunkIndex: 0,
 			}
 

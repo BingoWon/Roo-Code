@@ -95,7 +95,7 @@ export const MessageFactory = {
 		askResponse: "yesButtonClicked" | "noButtonClicked" | "messageResponse" | "objectResponse",
 		text?: string,
 		images?: readonly string[],
-	): AskResponseMessage {
+	): VisionMessage {
 		return {
 			...createBaseMessage(VisionMessageType.ASK_RESPONSE),
 			payload: {
