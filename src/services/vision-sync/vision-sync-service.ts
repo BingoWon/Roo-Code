@@ -21,6 +21,7 @@ export class VisionSyncService extends EventEmitter {
 	private isRunning = false
 	private networkInfo: NetworkInfo | null = null
 	private cleanupInterval: NodeJS.Timeout | null = null
+	private provider: ClineProvider | null = null
 
 	constructor(config: Partial<VisionSyncConfig> = {}) {
 		super()
@@ -47,6 +48,7 @@ export class VisionSyncService extends EventEmitter {
 
 			// Initialize AI bridge with provider for bidirectional sync
 			if (provider) {
+				this.provider = provider
 				this.aiBridge.initialize(provider)
 			}
 
@@ -141,24 +143,32 @@ export class VisionSyncService extends EventEmitter {
 	 * Set up WebSocket server event handlers
 	 */
 	private setupWebSocketEventHandlers(): void {
-		if (!this.websocketServer) return // Use any to avoid complex EventEmitter type issues
-		;(this.websocketServer as any)
-			.on(VisionServiceEvent.CLIENT_CONNECTED, (data: any) => {
-				console.log(`[VisionSync] Client connected: ${data.connection.id} (${data.connection.clientType})`)
-				this.emit(VisionServiceEvent.CLIENT_CONNECTED, data)
-			})(this.websocketServer as any)
-			.on(VisionServiceEvent.CLIENT_DISCONNECTED, (data: any) => {
-				console.log(`[VisionSync] Client disconnected: ${data.connectionId}`)
-				this.handleClientDisconnection(data.connectionId)
-				this.emit(VisionServiceEvent.CLIENT_DISCONNECTED, data)
-			})(this.websocketServer as any)
-			.on(VisionServiceEvent.MESSAGE_RECEIVED, async (data: any) => {
-				await this.handleMessage(data.connectionId, data.message)
-				this.emit(VisionServiceEvent.MESSAGE_RECEIVED, data)
-			})(this.websocketServer as any)
-			.on(VisionServiceEvent.ERROR, (data: any) => {
-				this.emit(VisionServiceEvent.ERROR, data)
-			})
+		if (!this.websocketServer) return
+
+		// Set up event handlers for WebSocket server
+		this.websocketServer.on(VisionServiceEvent.CLIENT_CONNECTED, (data: any) => {
+			console.log(`[VisionSync] Client connected: ${data.connection.id} (${data.connection.clientType})`)
+			this.emit(VisionServiceEvent.CLIENT_CONNECTED, data)
+			// 通知 VSCode 插件状态更新
+			this.notifyStatusUpdate()
+		})
+
+		this.websocketServer.on(VisionServiceEvent.CLIENT_DISCONNECTED, (data: any) => {
+			console.log(`[VisionSync] Client disconnected: ${data.connectionId}`)
+			this.handleClientDisconnection(data.connectionId)
+			this.emit(VisionServiceEvent.CLIENT_DISCONNECTED, data)
+			// 通知 VSCode 插件状态更新
+			this.notifyStatusUpdate()
+		})
+
+		this.websocketServer.on(VisionServiceEvent.MESSAGE_RECEIVED, async (data: any) => {
+			await this.handleMessage(data.connectionId, data.message)
+			this.emit(VisionServiceEvent.MESSAGE_RECEIVED, data)
+		})
+
+		this.websocketServer.on(VisionServiceEvent.ERROR, (data: any) => {
+			this.emit(VisionServiceEvent.ERROR, data)
+		})
 	}
 
 	/**
@@ -252,6 +262,23 @@ export class VisionSyncService extends EventEmitter {
 	}
 
 	/**
+	 * 通知 VSCode 插件状态更新
+	 */
+	private async notifyStatusUpdate(): Promise<void> {
+		if (this.provider) {
+			try {
+				const status = this.getStatus()
+				await this.provider.postMessageToWebview({
+					type: "visionSyncStatus",
+					status: status,
+				})
+			} catch (error) {
+				console.error("[VisionSync] Failed to notify status update:", error)
+			}
+		}
+	}
+
+	/**
 	 * Setup AI Bridge event handlers for bidirectional sync
 	 */
 	private setupAIBridgeHandlers(): void {
@@ -274,7 +301,14 @@ export class VisionSyncService extends EventEmitter {
 	 */
 	private async handleMessage(connectionId: string, message: VisionMessage): Promise<void> {
 		try {
-			if (!this.websocketServer) return
+			console.log(
+				`[VisionSync] handleMessage called - connectionId: ${connectionId}, messageType: ${message.type}`,
+			)
+
+			if (!this.websocketServer) {
+				console.warn(`[VisionSync] No websocket server available`)
+				return
+			}
 
 			const connection = this.websocketServer.getConnection(connectionId)
 			if (!connection) {
@@ -282,8 +316,11 @@ export class VisionSyncService extends EventEmitter {
 				return
 			}
 
+			console.log(`[VisionSync] Connection found for ${connectionId}`)
+
 			// Register client for bidirectional sync on first AI message
 			if (isAIMessage(message)) {
+				console.log(`[VisionSync] AI message detected: ${message.type}`)
 				this.aiBridge.registerClient(connectionId, connection)
 			}
 
@@ -292,19 +329,30 @@ export class VisionSyncService extends EventEmitter {
 				let response: VisionMessage
 
 				if (message.type === "AIConversation") {
+					console.log(`[VisionSync] Processing AIConversation message`)
 					response = await this.aiBridge.processAIConversation(connectionId, message, connection)
+				} else if (message.type === "AskResponse") {
+					console.log(`[VisionSync] Processing AskResponse message: ${JSON.stringify(message.payload)}`)
+					response = await this.aiBridge.processAskResponse(connectionId, message, connection)
 				} else if (message.type === "TriggerSend") {
+					console.log(`[VisionSync] Processing TriggerSend message`)
 					response = await this.aiBridge.processTriggerSend(connectionId, message, connection)
 				} else {
 					console.warn(`[VisionSync] Unhandled AI message type: ${message.type}`)
 					return
 				}
 
+				console.log(`[VisionSync] Sending response back to client: ${response.type}`)
 				// Send response back to client
 				const sent = this.websocketServer.sendMessage(connectionId, response)
 				if (sent) {
+					console.log(`[VisionSync] Response sent successfully`)
 					this.emit(VisionServiceEvent.MESSAGE_SENT, { connectionId, message: response })
+				} else {
+					console.warn(`[VisionSync] Failed to send response`)
 				}
+			} else {
+				console.log(`[VisionSync] Non-AI message type: ${message.type}`)
 			}
 		} catch (error) {
 			console.error(`[VisionSync] Error handling message from ${connectionId}:`, error)

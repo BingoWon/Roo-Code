@@ -1,0 +1,122 @@
+{
+	"folders": [
+		{
+			"name": "VibeHacks Root",
+			"path": "."
+		},
+		{
+			"name": "Roo Code",
+			"path": "./Roo-Code"
+		},
+		{
+			"name": "Zed",
+			"path": "./zed"
+		},
+		{
+			"name": "JoyVibe",
+			"path": "./JoyVibe"
+		}
+	],
+	"settings": {
+		"files.exclude": {
+			"**/node_modules": true,
+			"**/target": true,
+			"**/.turbo": true
+		},
+		"search.exclude": {
+			"**/node_modules": true,
+			"**/target": true,
+			"**/.turbo": true,
+			"**/dist": true
+		},
+		"typescript.tsc.autoDetect": "off",
+		"eslint.workingDirectories": [
+			"Roo-Code/src",
+			"Roo-Code/webview-ui"
+		]
+	},
+	"launch": {
+		"version": "0.2.0",
+		"configurations": [
+			{
+				"name": "Run Roo Code Extension",
+				"type": "extensionHost",
+				"request": "launch",
+				"runtimeExecutable": "${execPath}",
+				"args": ["--extensionDevelopmentPath=${workspaceFolder:Roo Code}/src"],
+				"sourceMaps": true,
+				"outFiles": ["${workspaceFolder:Roo Code}/src/dist/**/*.js"],
+				"preLaunchTask": "Build Roo Code Extension",
+				"env": {
+					"NODE_ENV": "development",
+					"VSCODE_DEBUG_MODE": "true"
+				},
+				"resolveSourceMapLocations": [
+					"${workspaceFolder:Roo Code}/**", 
+					"!**/node_modules/**"
+				],
+				"presentation": {
+					"hidden": false,
+					"group": "Roo Code",
+					"order": 1
+				}
+			},
+			{
+				"name": "Run Zed (Debug)",
+				"type": "lldb",
+				"request": "launch",
+				"program": "${workspaceFolder:Zed}/target/debug/zed",
+				"args": [],
+				"cwd": "${workspaceFolder:Zed}",
+				"preLaunchTask": "Build Zed Debug",
+				"presentation": {
+					"hidden": false,
+					"group": "Zed",
+					"order": 1
+				}
+			}
+		]
+	},
+	"tasks": {
+		"version": "2.0.0",
+		"tasks": [
+			{
+				"label": "Build Roo Code Extension",
+				"type": "shell",
+				"command": "pnpm",
+				"args": ["run", "bundle"],
+				"options": {
+					"cwd": "${workspaceFolder:Roo Code}/src"
+				},
+				"group": {
+					"kind": "build",
+					"isDefault": true
+				},
+				"presentation": {
+					"echo": true,
+					"reveal": "always",
+					"focus": false,
+					"panel": "shared"
+				},
+				"problemMatcher": []
+			},
+			{
+				"label": "Build Zed Debug",
+				"type": "shell",
+				"command": "cargo",
+				"args": ["build", "--bin", "zed"],
+				"options": {
+					"cwd": "${workspaceFolder:Zed}"
+				},
+				"group": "build",
+				"presentation": {
+					"echo": true,
+					"reveal": "always",
+					"focus": false,
+					"panel": "shared"
+				},
+				"problemMatcher": ["$rustc"]
+			}
+		]
+	}
+}

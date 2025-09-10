@@ -141,11 +141,17 @@ export class VisionWebSocketServer extends EventEmitter {
 	 */
 	private handleMessage(clientId: string, data: any): void {
 		const client = this.clients.get(clientId)
-		if (!client) return
+		if (!client) {
+			console.warn(`[VisionWebSocket] No client found for ID: ${clientId}`)
+			return
+		}
 
 		try {
 			const dataString = Buffer.isBuffer(data) ? data.toString() : String(data)
+			console.log(`[VisionWebSocket] Raw message received from ${clientId}: ${dataString.substring(0, 200)}...`)
+
 			const message = deserializeMessage(dataString)
+			console.log(`[VisionWebSocket] Deserialized message type: ${message.type}`)
 
 			if (!validateMessage(message)) {
 				throw new Error("Invalid message format")
@@ -157,6 +163,7 @@ export class VisionWebSocketServer extends EventEmitter {
 				lastActivity: new Date(),
 			}
 
+			console.log(`[VisionWebSocket] Emitting MESSAGE_RECEIVED event for ${message.type}`)
 			this.emit(VisionServiceEvent.MESSAGE_RECEIVED, { connectionId: clientId, message })
 
 			// Handle specific message types
@@ -198,22 +205,27 @@ export class VisionWebSocketServer extends EventEmitter {
 	}
 
 	/**
-	 * Handle client handshake
+	 * 现代化客户端握手处理 - 完全支持 VisionSync 协议
 	 */
 	private handleHandshake(clientId: string, message: any): void {
 		const client = this.clients.get(clientId)
 		if (!client) return
 
-		// Update connection info with handshake data
+		// 现代化数据提取 - 直接使用消息解析后的格式
+		const clientType = message.clientType || "visionOS"
+		const version = message.version || "1.0.0"
+		const capabilities = message.capabilities || []
+
+		// 更新连接信息
 		client.connection = {
 			...client.connection,
-			clientType: message.clientType,
-			version: message.version,
-			capabilities: message.capabilities,
+			clientType,
+			version,
+			capabilities,
 			state: ConnectionState.CONNECTED,
 		}
 
-		// Send connection accepted response
+		// 发送连接接受响应 - 使用标准格式
 		const acceptedMessage = MessageFactory.connectionAccepted(clientId, {
 			name: "Roo Code",
 			version: "1.0.0",
@@ -223,10 +235,10 @@ export class VisionWebSocketServer extends EventEmitter {
 
 		this.sendMessage(clientId, acceptedMessage)
 
-		// Emit connection event
+		// 触发连接事件
 		this.emit(VisionServiceEvent.CLIENT_CONNECTED, { connection: client.connection })
 
-		console.log(`[VisionWebSocket] Client handshake completed: ${clientId} (${message.clientType})`)
+		console.log(`[VisionWebSocket] ✅ 客户端握手完成: ${clientId} (${clientType} v${version})`)
 	}
 
 	/**

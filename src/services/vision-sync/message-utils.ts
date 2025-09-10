@@ -15,6 +15,7 @@ import type {
 	PongMessage,
 	EchoMessage,
 } from "./types"
+import { VISION_SYNC_CONSTANTS } from "./constants"
 import { VisionMessageType } from "./types"
 
 /**
@@ -75,6 +76,7 @@ export const MessageFactory = {
 		role: "user" | "assistant",
 		content: string,
 		metadata?: Record<string, unknown>,
+		partial?: boolean,
 	): AIConversationMessage {
 		return {
 			...createBaseMessage(VisionMessageType.AI_CONVERSATION),
@@ -83,6 +85,24 @@ export const MessageFactory = {
 				role,
 				content,
 				metadata,
+				...(partial !== undefined && { partial }),
+			},
+		}
+	},
+
+	askResponse(
+		sessionId: string,
+		askResponse: "yesButtonClicked" | "noButtonClicked" | "messageResponse" | "objectResponse",
+		text?: string,
+		images?: readonly string[],
+	): AskResponseMessage {
+		return {
+			...createBaseMessage(VisionMessageType.ASK_RESPONSE),
+			payload: {
+				sessionId,
+				askResponse,
+				...(text && { text }),
+				...(images && { images }),
 			},
 		}
 	},
@@ -131,20 +151,63 @@ export function serializeMessage(message: VisionMessage): string {
 }
 
 /**
- * Deserialize a JSON string to a message
+ * Deserialize a JSON string to a message with payload format support
  */
 export function deserializeMessage(data: string): VisionMessage {
 	try {
 		const parsed = JSON.parse(data)
 
-		// Basic validation
-		if (!parsed.type || !parsed.timestamp || !parsed.id) {
-			throw new Error("Invalid message format: missing required fields")
+		// Basic validation - only type is required
+		if (!parsed.type) {
+			throw new Error("Invalid message format: missing type field")
 		}
 
 		// Validate message type
 		if (!Object.values(VisionMessageType).includes(parsed.type)) {
 			throw new Error(`Invalid message type: ${parsed.type}`)
+		}
+
+		// Add default timestamp and id if missing
+		if (!parsed.timestamp) {
+			parsed.timestamp = Date.now()
+		}
+		if (!parsed.id) {
+			parsed.id = `${VISION_SYNC_CONSTANTS.MESSAGE.CLIENT_INFO.TYPE}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+		}
+
+		// 现代化 ClientHandshake 处理 - 完全支持 payload 格式
+		if (parsed.type === VisionMessageType.CLIENT_HANDSHAKE) {
+			if (parsed.payload) {
+				// 标准 payload 格式 - 客户端使用的格式
+				return {
+					type: parsed.type,
+					timestamp: parsed.timestamp,
+					id: parsed.id,
+					clientType: parsed.payload.clientType || "visionOS",
+					version: parsed.payload.version || "1.0.0",
+					capabilities: parsed.payload.capabilities || [],
+				} as VisionMessage
+			} else if (parsed.clientType && parsed.version && parsed.capabilities) {
+				// 直接格式 - 向后兼容
+				return parsed as VisionMessage
+			} else {
+				// 默认值处理
+				return {
+					type: parsed.type,
+					timestamp: parsed.timestamp,
+					id: parsed.id,
+					clientType: "visionOS",
+					version: "1.0.0",
+					capabilities: [],
+				} as VisionMessage
+			}
+		}
+
+		// Handle AIConversation - normalize session_id to sessionId
+		if (parsed.type === VisionMessageType.AI_CONVERSATION && parsed.payload) {
+			if (parsed.payload.session_id && !parsed.payload.sessionId) {
+				parsed.payload.sessionId = parsed.payload.session_id
+			}
 		}
 
 		return parsed as VisionMessage
@@ -173,9 +236,13 @@ export function validateMessage(message: unknown): message is VisionMessage {
 		return false
 	}
 
-	// Type-specific validation
+	// 现代化类型验证
 	switch (msg.type) {
 		case VisionMessageType.CLIENT_HANDSHAKE:
+			// 优先验证 payload 格式，兼容直接格式
+			if (msg.payload) {
+				return !!(msg.payload.clientType && msg.payload.version && Array.isArray(msg.payload.capabilities))
+			}
 			return !!(msg.clientType && msg.version && Array.isArray(msg.capabilities))
 
 		case VisionMessageType.CONNECTION_ACCEPTED:
@@ -184,8 +251,11 @@ export function validateMessage(message: unknown): message is VisionMessage {
 		case VisionMessageType.CONNECTION_REJECTED:
 			return !!msg.reason
 
-		case VisionMessageType.AI_CONVERSATION:
-			return !!(msg.payload?.sessionId && msg.payload?.role && msg.payload?.content)
+		case VisionMessageType.AI_CONVERSATION: {
+			// Support both sessionId and session_id formats
+			const sessionId = msg.payload?.sessionId || msg.payload?.session_id
+			return !!(sessionId && msg.payload?.role && msg.payload?.content)
+		}
 
 		case VisionMessageType.TRIGGER_SEND:
 			return !!(msg.payload?.sessionId && msg.payload?.action)
@@ -224,7 +294,9 @@ export function isConnectionMessage(message: VisionMessage): boolean {
  * Check if a message is an AI-related message
  */
 export function isAIMessage(message: VisionMessage): boolean {
-	return [VisionMessageType.AI_CONVERSATION, VisionMessageType.TRIGGER_SEND].includes(message.type)
+	return [VisionMessageType.AI_CONVERSATION, VisionMessageType.ASK_RESPONSE, VisionMessageType.TRIGGER_SEND].includes(
+		message.type,
+	)
 }
 
 /**

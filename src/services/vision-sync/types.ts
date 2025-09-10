@@ -37,6 +37,7 @@ export enum VisionMessageType {
 
 	// AI conversation
 	AI_CONVERSATION = "AIConversation",
+	ASK_RESPONSE = "AskResponse",
 	TRIGGER_SEND = "TriggerSend",
 
 	// System
@@ -85,6 +86,17 @@ export interface AIConversationMessage extends BaseVisionMessage {
 		readonly role: "user" | "assistant"
 		readonly content: string
 		readonly metadata?: Record<string, unknown>
+		readonly partial?: boolean
+	}
+}
+
+export interface AskResponseMessage extends BaseVisionMessage {
+	readonly type: VisionMessageType.ASK_RESPONSE
+	readonly payload: {
+		readonly sessionId: string
+		readonly askResponse: "yesButtonClicked" | "noButtonClicked" | "messageResponse" | "objectResponse"
+		readonly text?: string
+		readonly images?: readonly string[]
 	}
 }
 
@@ -117,6 +129,7 @@ export type VisionMessage =
 	| ConnectionAcceptedMessage
 	| ConnectionRejectedMessage
 	| AIConversationMessage
+	| AskResponseMessage
 	| TriggerSendMessage
 	| PingMessage
 	| PongMessage

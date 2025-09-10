@@ -852,16 +852,28 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 		}
 
 		// Wait for askResponse to be set.
+		console.log(`[Task ${this.taskId}] Starting to wait for askResponse, askTs: ${askTs}`)
+		console.log(
+			`[Task ${this.taskId}] Current askResponse: ${this.askResponse}, lastMessageTs: ${this.lastMessageTs}`,
+		)
+
 		await pWaitFor(() => this.askResponse !== undefined || this.lastMessageTs !== askTs, { interval: 100 })
+
+		console.log(
+			`[Task ${this.taskId}] Wait completed. askResponse: ${this.askResponse}, lastMessageTs: ${this.lastMessageTs}`,
+		)
 
 		if (this.lastMessageTs !== askTs) {
 			// Could happen if we send multiple asks in a row i.e. with
 			// command_output. It's important that when we know an ask could
 			// fail, it is handled gracefully.
+			console.log(`[Task ${this.taskId}] Ask promise was ignored - lastMessageTs changed`)
 			throw new Error("Current ask promise was ignored")
 		}
 
 		const result = { response: this.askResponse!, text: this.askResponseText, images: this.askResponseImages }
+		console.log(`[Task ${this.taskId}] Returning ask result: ${result.response}`)
+
 		this.askResponse = undefined
 		this.askResponseText = undefined
 		this.askResponseImages = undefined
@@ -886,9 +898,15 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 	}
 
 	handleWebviewAskResponse(askResponse: ClineAskResponse, text?: string, images?: string[]) {
+		console.log(`[Task ${this.taskId}] handleWebviewAskResponse called with: ${askResponse}`)
+		console.log(`[Task ${this.taskId}] Previous askResponse state: ${this.askResponse}`)
+		console.log(`[Task ${this.taskId}] lastMessageTs: ${this.lastMessageTs}`)
+
 		this.askResponse = askResponse
 		this.askResponseText = text
 		this.askResponseImages = images
+
+		console.log(`[Task ${this.taskId}] askResponse set to: ${this.askResponse}`)
 
 		// Create a checkpoint whenever the user sends a message.
 		// Use allowEmpty=true to ensure a checkpoint is recorded even if there are no file changes.
